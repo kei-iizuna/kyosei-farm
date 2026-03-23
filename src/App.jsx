@@ -43,26 +43,30 @@ const PREFECTURES = [
 ];
 
 // ── Open-Meteo API で気候データ取得 ─────────────────────────────────────
-// 座標から旬ごとの気候データを生成（過去30年の月別平均を旬に展開）
+// Open-Meteo Historical Weather API で月別平均気温を取得
 async function fetchClimateFromAPI(lat, lon, altitude) {
-  // Open-Meteo Climate API: ERA5 30年平均（1991-2020）
-  const url = `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lon}&start_date=1991-01-01&end_date=2020-12-31&models=ERA5&daily=temperature_2m_mean,temperature_2m_min&timezone=Asia%2FTokyo`;
+  // Open-Meteo Historical API: 過去10年分の月別集計
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2014-01-01&end_date=2023-12-31&monthly=temperature_2m_mean,temperature_2m_min&timezone=Asia%2FTokyo`;
   const res  = await fetch(url);
   const data = await res.json();
+
+  if (!data.monthly || !data.monthly.time) {
+    throw new Error("気候データの取得に失敗しました。座標を確認してください。");
+  }
 
   // 標高補正：100mごとに-0.6℃
   const altCorrection = ((altitude || 0) - (data.elevation || 0)) * (-0.006);
 
-  // 月別平均を計算
+  // 月別平均を計算（複数年分を平均）
   const monthlyAvg = Array(13).fill(0).map(() => ({ sum: 0, count: 0 }));
   const monthlyMin = Array(13).fill(0).map(() => ({ sum: 0, count: 0 }));
 
-  data.daily.time.forEach((dateStr, i) => {
+  data.monthly.time.forEach((dateStr, i) => {
     const m    = parseInt(dateStr.split("-")[1]);
-    const mean = data.daily.temperature_2m_mean[i];
-    const min  = data.daily.temperature_2m_min[i];
-    if (mean !== null) { monthlyAvg[m].sum += mean; monthlyAvg[m].count++; }
-    if (min  !== null) { monthlyMin[m].sum += min;  monthlyMin[m].count++; }
+    const mean = data.monthly.temperature_2m_mean[i];
+    const min  = data.monthly.temperature_2m_min[i];
+    if (mean !== null && mean !== undefined) { monthlyAvg[m].sum += mean; monthlyAvg[m].count++; }
+    if (min  !== null && min  !== undefined) { monthlyMin[m].sum += min;  monthlyMin[m].count++; }
   });
 
   // 旬データを生成
