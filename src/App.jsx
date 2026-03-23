@@ -652,12 +652,8 @@ export default function App() {
     setCrops([]);
   };
 
-  // 未設定なら地域登録画面
-  if (!location) return <LocationSetup onComplete={handleLocationComplete} />;
-
-  const climateJuns = location.climateJuns || [];
+  const climateJuns = location ? (location.climateJuns || []) : [];
   const getClimate  = (code) => climateJuns.find(c => c.code === code) || { label:codeToLabel(code), avgTemp:10, minTemp:5, frost:false, snow:false, work:"" };
-  const climate     = getClimate(selectedCode);
   const nowClimate  = getClimate(nowCode);
 
   const todaySow     = crops.filter(c => inRange(nowCode, c.sowStart, c.sowEnd));
@@ -676,6 +672,11 @@ export default function App() {
     if (bA !== aA) return bA - aA;
     return (b.altitudeRating || 3) - (a.altitudeRating || 3);
   }), [filtered, selectedCode]);
+
+  // 未設定なら地域登録画面
+  if (!location) return <LocationSetup onComplete={handleLocationComplete} />;
+
+  const climate = getClimate(selectedCode);
 
   const JunSelector = () => (
     <div style={{ background:"#fff", borderRadius:12, padding:"10px 12px", marginBottom:10, border:"1px solid #e0d8cc", overflowX:"auto" }}>
